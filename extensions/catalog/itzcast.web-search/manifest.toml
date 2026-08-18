@@ -1,0 +1,8 @@
+id = "itzcast.web-search"
+name = "Web Search"
+version = "0.0.1"
+enabled = true
+command = ["@java", "-jar", "../.runtime/itzcast-extensions.jar", "web-search"]
+hooks = ["suggest"]
+priority = -100
+timeoutMs = 2000

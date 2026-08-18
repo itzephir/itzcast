@@ -1,0 +1,8 @@
+id = "itzcast.calculator"
+name = "Calculator"
+version = "0.0.1"
+enabled = true
+command = ["@java", "-jar", "../.runtime/itzcast-extensions.jar", "calculator"]
+hooks = ["suggest"]
+priority = 80
+timeoutMs = 2000

@@ -1,0 +1,9 @@
+id = "example.github-search"
+name = "GitHub Search"
+version = "0.1.0"
+enabled = true
+command = ["./extension.py"]
+hooks = ["launch", "prefix", "use"]
+prefixes = ["gh"]
+priority = 70
+timeoutMs = 2000

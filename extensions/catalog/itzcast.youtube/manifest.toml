@@ -1,0 +1,9 @@
+id = "itzcast.youtube"
+name = "YouTube Search"
+version = "0.0.1"
+enabled = true
+command = ["@java", "-jar", "../.runtime/itzcast-extensions.jar", "youtube"]
+hooks = ["prefix"]
+prefixes = ["yt", "youtube"]
+priority = 90
+timeoutMs = 2000

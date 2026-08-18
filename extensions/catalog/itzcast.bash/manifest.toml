@@ -1,0 +1,9 @@
+id = "itzcast.bash"
+name = "Shell Command"
+version = "0.0.1"
+enabled = true
+command = ["@java", "-jar", "../.runtime/itzcast-extensions.jar", "bash"]
+hooks = ["prefix"]
+prefixes = ["bash", "sh"]
+priority = 100
+timeoutMs = 2000

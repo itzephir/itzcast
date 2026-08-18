@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Verify (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-14]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v6
+      - name: Test and compile
+        run: ./gradlew --stacktrace check :app:compileKotlin
+
+  package-macos:
+    name: Package macOS
+    needs: verify
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v6
+      - name: Build DMG
+        # Compose's jpackage task is not configuration-cache compatible yet.
+        run: ./gradlew --no-configuration-cache --stacktrace :app:packagePublicDmg
+      - uses: actions/upload-artifact@v7
+        with:
+          name: itzcast-macos
+          path: app/build/release/*.dmg
+          if-no-files-found: error
