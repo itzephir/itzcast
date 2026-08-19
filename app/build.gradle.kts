@@ -66,11 +66,28 @@ compose.desktop {
     }
 }
 
+// Compose strips native commands from its jlink image by default. Official
+// extensions use @java to run in isolated processes, so restore that launcher
+// before jpackage assembles the app image.
+val installExtensionJavaLauncher by tasks.registering(Copy::class) {
+    dependsOn("createRuntimeImage")
+    from(file("${System.getProperty("java.home")}/bin/java"))
+    into(layout.buildDirectory.dir("compose/tmp/main/runtime/bin"))
+    filePermissions { unix("rwxr-xr-x") }
+}
+
+tasks.matching { it.name == "createDistributable" }.configureEach {
+    dependsOn(installExtensionJavaLauncher)
+}
+
 tasks.register<Sync>("packagePublicDmg") {
     group = "distribution"
     description = "Builds a DMG named with the public itzcast release version."
     dependsOn("packageDmg")
     from(layout.buildDirectory.file("compose/binaries/main/dmg/itzcast-$macPackageVersion.dmg"))
     into(layout.buildDirectory.dir("release"))
-    rename { "itzcast-$releaseVersion.dmg" }
+    rename(
+        "itzcast-${Regex.escape(macPackageVersion)}[.]dmg",
+        "itzcast-$releaseVersion.dmg",
+    )
 }
