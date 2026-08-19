@@ -1,101 +1,141 @@
 # itzcast
 
-itzcast — быстрый и расширяемый launcher для macOS в духе Spotlight и Raycast. Проект построен на Kotlin Multiplatform и Compose Desktop; UI, алгоритмы pipeline и платформенная интеграция не зависят друг от друга.
+English | [Русский](README.ru.md)
 
-Текущая версия приложения: **0.0.1**.
+itzcast is a fast, extensible launcher for macOS inspired by Spotlight and
+Raycast. It is built with Kotlin Multiplatform and Compose Desktop, with clear
+boundaries between the UI, pipeline algorithms, platform integration, and
+extensions.
 
-## Что уже работает
+Current application version: **0.0.1**.
 
-- настраиваемый глобальный хоткей показывает и скрывает окно; по умолчанию — `⌥ Space`;
-- экран Settings записывает новое сочетание и сохраняет его в `~/.itzcast/settings.toml`;
-- fuzzy-поиск по приложениям из `/Applications`, `/System/Applications` и `~/Applications`;
-- Enter запускает выбранное приложение, а обычный запрос открывает поиск в браузере;
-- `bash ls -la` и `sh …` запускают команду через zsh в домашнем каталоге;
-- `yt смешное видео с котиками` открывает поиск YouTube;
-- математические выражения вроде `2 + 3 * (4 ^ 2)` вычисляются локально, Enter копирует результат;
-- официальный каталог `applications`, `bash`, `calculator`, `youtube` и `web-search` устанавливается в `~/.itzcast/extensions` как настоящие process extensions;
-- пользовательские расширения из `~/.itzcast/extensions/*/manifest.toml` загружаются тем же механизмом;
-- хуки `launch`, `prefix`, `suggest` и `use` работают через языконезависимый JSON Lines protocol.
+## What works today
 
-## Запуск
+- A configurable global hotkey shows and hides the launcher. The default is
+  `⌥ Space`.
+- The Settings screen records a new hotkey and stores it in
+  `~/.itzcast/settings.toml`.
+- Fuzzy application search covers `/Applications`, `/System/Applications`, and
+  `~/Applications`.
+- Enter launches the selected application; a plain query opens a web search in
+  the default browser.
+- `bash ls -la` and `sh …` run a command through zsh in the user's home
+  directory.
+- `yt funny cat videos` opens a YouTube search.
+- Expressions such as `2 + 3 * (4 ^ 2)` are evaluated locally; Enter copies
+  the result.
+- The official `applications`, `bash`, `calculator`, `youtube`, and
+  `web-search` catalog is installed under `~/.itzcast/extensions` as real
+  process extensions.
+- User extensions from `~/.itzcast/extensions/*/manifest.toml` are loaded by
+  the same mechanism.
+- The `launch`, `prefix`, `suggest`, and `use` hooks use a language-independent
+  JSON Lines protocol.
 
-Требования: macOS и JDK 21+.
+## Running the application
+
+Requirements: macOS and JDK 21 or newer.
 
 ```bash
 ./gradlew :app:run
 ```
 
-DMG можно собрать так:
+Build a DMG with:
 
 ```bash
 ./gradlew --no-configuration-cache :app:packagePublicDmg
 ```
 
-Release-артефакт появится в `app/build/release/itzcast-0.0.1.dmg`.
+The release artifact is written to
+`app/build/release/itzcast-0.0.1.dmg`.
 
-При первом старте окно показывается сразу. Затем `⌥ Space` работает глобально через Carbon Hot Key API и не требует Accessibility permission. Чтобы изменить сочетание, откройте itzcast, нажмите `⚙ Settings`, затем `Change`, введите новое сочетание и сохраните его.
+The launcher is visible immediately on its first run. After that, `⌥ Space`
+works globally through the Carbon Hot Key API and does not require Accessibility
+permission. To change the shortcut, open itzcast, select `⚙ Settings`, click
+`Change`, press the new combination, and save it.
 
-### Как использовать `⌘ Space`
+### Using `⌘ Space`
 
-macOS по умолчанию назначает `⌘ Space` на Spotlight, поэтому сначала нужно освободить сочетание:
+macOS assigns `⌘ Space` to Spotlight by default, so release that shortcut
+first:
 
-1. Откройте **Apple menu → System Settings → Keyboard → Keyboard Shortcuts**.
-2. Выберите **Spotlight** в боковой панели.
-3. Отключите shortcut открытия Spotlight либо дважды нажмите на текущее сочетание и назначьте Spotlight другое.
-4. Вернитесь в itzcast: **⚙ Settings → Change**, нажмите `⌘ Space`, затем **Save**.
+1. Open **Apple menu → System Settings → Keyboard → Keyboard Shortcuts**.
+2. Select **Spotlight** in the sidebar.
+3. Disable the Spotlight shortcut, or double-click it and assign another
+   combination.
+4. Return to itzcast, open **⚙ Settings → Change**, press `⌘ Space`, and select
+   **Save**.
 
-Если сочетание всё ещё занято macOS или другим приложением, itzcast покажет ошибку и сохранит прежний рабочий hotkey. Инструкция по изменению и отключению системных shortcuts есть также в [Apple Support](https://support.apple.com/guide/mac-help/keyboard-shortcuts-mchlp2262/mac).
+If macOS or another application still owns the combination, itzcast reports an
+error and keeps the previous working hotkey. See
+[Apple Support](https://support.apple.com/guide/mac-help/keyboard-shortcuts-mchlp2262/mac)
+for the system shortcut instructions.
 
-## Архитектура
+## Architecture
 
 ```text
 app (Compose UI + composition root)
-  ├── core (KMP: model, ranking, pipeline, built-in hooks)
+  ├── core (KMP: models, contracts, ranking, pipeline)
   ├── platform-desktop (actions, hotkey, extension host)
-  └── extensions (официальный Kotlin/JVM-каталог + TOML manifests)
+  └── extensions (official Kotlin/JVM catalog + TOML manifests)
 ```
 
-- `core` не знает о Compose, файловой системе, браузере или процессах. Все side effects проходят через `ActionExecutor`.
-- `platform-desktop` реализует macOS-адаптеры и host protocol внешних расширений.
-- `app` создаёт pipeline и отображает его состояние. UI можно заменить, не переписывая поиск и плагины.
-- В host нет конкретных реализаций extensions: даже `bash` работает через отдельный TOML-манифест и process protocol.
-- Официальные и пользовательские suggestions проходят один pipeline и имеют стабильный `sourceId` — это задел под динамический ranking по `use`-событиям.
-- Ошибка одного extension hook изолируется и не ломает выдачу остальных.
+- `core` has no knowledge of Compose, filesystems, browsers, or processes. All
+  side effects go through `ActionExecutor`.
+- `platform-desktop` implements the macOS adapters and the external extension
+  host protocol.
+- `app` creates the pipeline and renders its state. The UI can be replaced
+  without rewriting search or extensions.
+- The host contains no concrete extension implementations. Even `bash` is a
+  separate TOML manifest using the process protocol.
+- Official and user suggestions share one pipeline and have stable `sourceId`
+  values, providing the foundation for dynamic ranking based on `use` events.
+- A failing extension hook is isolated and cannot break results from other
+  extensions.
 
-Подробный контракт плагинов: [docs/extensions.md](docs/extensions.md). Готовый Python-пример: [examples/extensions/github-search](examples/extensions/github-search).
+The extension contract is documented in
+[docs/extensions.md](docs/extensions.md). A ready-to-run Python example is
+available under
+[examples/extensions/github-search](examples/extensions/github-search).
 
-## Проверка
+## Verification
 
 ```bash
 ./gradlew check :app:compileKotlin
 ```
 
-GitHub Actions прогоняет проверки на macOS и Linux; macOS job дополнительно собирает DMG и сохраняет его как artifact.
+GitHub Actions runs checks on macOS and Linux. The macOS job also builds the
+DMG and uploads it as an artifact.
 
-## Ближайшие архитектурные шаги
+## Architectural roadmap
 
-1. Инкрементальный индекс файлов и Spotlight metadata adapter.
-2. Версионирование/capabilities extension protocol и permission manifest.
-3. История выбора и динамический ranking на основе `use`-событий и `sourceId`.
-4. Rich suggestions: иконки, формы, preview, secondary actions и streaming updates.
-5. Персистентные процессы расширений с backpressure вместо process-per-hook.
-6. Общий UI state/controller в `commonMain` и платформенные реализации для Windows/Linux.
+1. Incremental file index and a Spotlight metadata adapter.
+2. Versioned extension protocol, capabilities, and permission manifests.
+3. Selection history and dynamic ranking based on `use` events and `sourceId`.
+4. Rich suggestions: icons, forms, previews, secondary actions, and streaming
+   updates.
+5. Persistent extension processes with backpressure instead of one process per
+   hook invocation.
+6. Shared UI state and controllers in `commonMain`, with platform
+   implementations for Windows and Linux.
 
-## Безопасность
+## Security
 
-Расширения — доверенный пользовательский код: executable из `~/.itzcast/extensions` запускается с правами пользователя. Устанавливайте только проверенные расширения. Команда `bash` выполняет введённую строку намеренно и без sandbox.
+Extensions are trusted user code: executables under `~/.itzcast/extensions`
+run with the user's permissions. Install extensions only from sources you
+trust. The `bash` command intentionally executes the supplied input without a
+sandbox.
 
-## Участие и лицензия
+## Contributing and license
 
-itzcast распространяется по [Apache License 2.0](LICENSE). Она разрешает
-использование, изменение и распространение кода, сохраняет уведомления об
-авторстве и включает явный патентный грант.
+itzcast is distributed under the [Apache License 2.0](LICENSE). It permits use,
+modification, and distribution, preserves attribution notices, and includes an
+explicit patent grant.
 
-Для pull request нужны две вещи: однократное принятие [CLA](CLA.md) и DCO
-sign-off в каждом коммите. Инструкции находятся в
-[CONTRIBUTING.md](CONTRIBUTING.md), полный текст DCO — в [DCO](DCO).
+Pull requests require one-time acceptance of the [CLA](CLA.md) and a DCO
+sign-off on every commit. See [CONTRIBUTING.md](CONTRIBUTING.md) for the full
+workflow and [DCO](DCO) for the certificate text.
 
-Ветка `main` принимает только криптографически подписанные коммиты со статусом
-GitHub `Verified`. Если в Git включён `commit.gpgsign=true`, команда
-`git commit -s` одновременно создаёт криптографическую подпись и добавляет
-необходимый DCO trailer `Signed-off-by`.
+The `main` branch accepts only cryptographically signed commits that GitHub
+marks as `Verified`. With `commit.gpgsign=true`, `git commit -s` both signs the
+commit cryptographically and adds the required DCO `Signed-off-by` trailer.
