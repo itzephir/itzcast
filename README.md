@@ -132,6 +132,13 @@ itzcast is distributed under the [Apache License 2.0](LICENSE). It permits use,
 modification, and distribution, preserves attribution notices, and includes an
 explicit patent grant.
 
+itzcast is an independent project and is not affiliated with or endorsed by
+Apple Inc. or Raycast Technologies Ltd. Apple, macOS, and Spotlight are
+trademarks of Apple Inc. Raycast is a trademark of Raycast Technologies Ltd.
+References to these products are used solely to describe compatibility,
+keyboard shortcuts, and functional context. See [NOTICE](NOTICE) for the full
+notice.
+
 Pull requests require one-time acceptance of the [CLA](CLA.md) and a DCO
 sign-off on every commit. See [CONTRIBUTING.md](CONTRIBUTING.md) for the full
 workflow and [DCO](DCO) for the certificate text.

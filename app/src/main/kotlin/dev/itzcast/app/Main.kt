@@ -479,6 +479,17 @@ private fun SettingsScreen(
                         color = Palette.muted,
                         fontSize = 12.sp,
                     )
+                    Spacer(Modifier.height(18.dp))
+                    Text("Independent project", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                    Spacer(Modifier.height(5.dp))
+                    Text(
+                        "itzcast is not affiliated with or endorsed by Apple or Raycast. " +
+                            "Apple, macOS, and Spotlight are trademarks of Apple Inc. " +
+                            "Raycast is a trademark of Raycast Technologies Ltd.",
+                        color = Palette.muted,
+                        fontSize = 11.sp,
+                        lineHeight = 16.sp,
+                    )
                     Spacer(Modifier.weight(1f))
                     message?.let {
                         Text(it, color = Palette.error, fontSize = 12.sp)
