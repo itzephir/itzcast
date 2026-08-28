@@ -5,7 +5,34 @@ import dev.itzcast.core.ExtensionRequest
 import dev.itzcast.core.ExtensionResponse
 import dev.itzcast.core.Suggestion
 import dev.itzcast.core.SuggestionKind
-import kotlin.math.abs
+import me.y9san9.calkt.annotation.CalculateSubclass
+import me.y9san9.calkt.calculate.CalculateContext
+import me.y9san9.calkt.calculate.CalculateResult
+import me.y9san9.calkt.calculate.tryCalculate
+import me.y9san9.calkt.math.InfixKey
+import me.y9san9.calkt.math.annotation.InfixKeySubclass
+import me.y9san9.calkt.math.calculate.DefaultMathCalculateInfixOperator
+import me.y9san9.calkt.math.calculate.MathCalculateFailure.UnsupportedInfixOperator
+import me.y9san9.calkt.math.calculate.MathCalculateInfixOperatorFunction
+import me.y9san9.calkt.math.calculate.MathCalculateSuccess
+import me.y9san9.calkt.math.calculate.calculateMathExpression
+import me.y9san9.calkt.math.calculate.plus
+import me.y9san9.calkt.math.parse.DefaultMathInfixOperators.Div
+import me.y9san9.calkt.math.parse.DefaultMathInfixOperators.Minus
+import me.y9san9.calkt.math.parse.DefaultMathInfixOperators.Plus
+import me.y9san9.calkt.math.parse.DefaultMathInfixOperators.Times
+import me.y9san9.calkt.math.parse.MathParseInfixAssociativity
+import me.y9san9.calkt.math.parse.MathParseInfixKeyFunction
+import me.y9san9.calkt.math.parse.MathParseInfixOperatorLevel
+import me.y9san9.calkt.math.parse.MathParseInfixOperatorLevels
+import me.y9san9.calkt.math.parse.parseMathExpression
+import me.y9san9.calkt.math.parse.plus
+import me.y9san9.calkt.number.PreciseNumber
+import me.y9san9.calkt.parse.ParseContext
+import me.y9san9.calkt.parse.ParseResult
+import me.y9san9.calkt.parse.base.token
+import me.y9san9.calkt.parse.cause.ExpectedInputCause
+import me.y9san9.calkt.parse.tryParse
 import kotlin.math.pow
 
 internal object CalculatorExtension : OfficialExtension {
@@ -15,10 +42,9 @@ internal object CalculatorExtension : OfficialExtension {
         if (expression.isEmpty() || expression.none(Char::isDigit) || expression.none { it in "+-*/%^" }) {
             return ExtensionResponse()
         }
-        val value = runCatching { ExpressionParser(expression).parse() }.getOrNull()
-            ?.takeIf(Double::isFinite)
+
+        val formatted = runCatching { CalculatorMath.calculate(expression) }.getOrNull()
             ?: return ExtensionResponse()
-        val formatted = if (abs(value - value.toLong()) < 1e-10) value.toLong().toString() else value.toString()
         return ExtensionResponse(
             suggestions = listOf(
                 Suggestion(
@@ -35,78 +61,83 @@ internal object CalculatorExtension : OfficialExtension {
     }
 }
 
-private class ExpressionParser(private val source: String) {
-    private var index = 0
+private object CalculatorMath {
+    private const val PRECISION = 16L
 
-    fun parse(): Double {
-        val result = expression()
-        skipWhitespace()
-        require(index == source.length) { "Unexpected input at $index" }
-        return result
-    }
+    private val operatorLevels = MathParseInfixOperatorLevels(
+        MathParseInfixOperatorLevel(PowerParse, MathParseInfixAssociativity.RIGHT),
+        MathParseInfixOperatorLevel(Times + Div + ModParse),
+        MathParseInfixOperatorLevel(Plus + Minus),
+    )
+    private val calculator = DefaultMathCalculateInfixOperator + ModCalculate + PowerCalculate
 
-    private fun expression(): Double {
-        var value = term()
-        while (true) {
-            skipWhitespace()
-            value = when {
-                consume('+') -> value + term()
-                consume('-') -> value - term()
-                else -> return value
-            }
+    fun calculate(source: String): String? {
+        val parsed = tryParse(source) { context ->
+            context.parseMathExpression(infixOperatorLevels = operatorLevels)
         }
-    }
-
-    private fun term(): Double {
-        var value = power()
-        while (true) {
-            skipWhitespace()
-            value = when {
-                consume('*') -> value * power()
-                consume('/') -> value / power()
-                consume('%') -> value % power()
-                else -> return value
-            }
+        val expression = (parsed as? ParseResult.Success)?.value ?: return null
+        val result = tryCalculate(expression, precision = PRECISION) { context ->
+            context.calculateMathExpression(calculateInfixOperator = calculator)
         }
+        return (result as? MathCalculateSuccess)?.number?.toString()
     }
 
-    private fun power(): Double {
-        val base = unary()
-        skipWhitespace()
-        return if (consume('^')) base.pow(power()) else base
-    }
+}
 
-    private fun unary(): Double {
-        skipWhitespace()
-        return when {
-            consume('+') -> unary()
-            consume('-') -> -unary()
-            consume('(') -> expression().also {
-                skipWhitespace()
-                require(consume(')')) { "Missing closing parenthesis" }
-            }
-            else -> number()
-        }
-    }
+@OptIn(InfixKeySubclass::class)
+private data object ModKey : InfixKey
 
-    private fun number(): Double {
-        skipWhitespace()
-        val start = index
-        while (index < source.length && (source[index].isDigit() || source[index] == '.')) index++
-        require(start != index) { "Expected a number at $index" }
-        return source.substring(start, index).toDouble()
-    }
+@OptIn(InfixKeySubclass::class)
+private data object PowerKey : InfixKey
 
-    private fun consume(expected: Char): Boolean =
-        if (index < source.length && source[index] == expected) {
-            index++
-            true
-        } else {
-            false
-
-        }
-
-    private fun skipWhitespace() {
-        while (index < source.length && source[index].isWhitespace()) index++
+private data object ModParse : MathParseInfixKeyFunction {
+    override fun invoke(context: ParseContext): InfixKey {
+        context.token("%") { ExpectedInputCause.of("%") }
+        return ModKey
     }
 }
+
+private data object PowerParse : MathParseInfixKeyFunction {
+    override fun invoke(context: ParseContext): InfixKey {
+        context.token("^") { ExpectedInputCause.of("^") }
+        return PowerKey
+    }
+}
+
+private data object ModCalculate : MathCalculateInfixOperatorFunction {
+    override fun invoke(
+        context: CalculateContext,
+        left: CalculateResult.Success,
+        right: CalculateResult.Success,
+        key: InfixKey,
+    ): CalculateResult.Success {
+        if (left !is MathCalculateSuccess || right !is MathCalculateSuccess || key != ModKey) {
+            context.fail(UnsupportedInfixOperator)
+        }
+        if (right.number.isZero()) {
+            context.fail(CalculateResult.DivisionByZero)
+        }
+        return MathCalculateSuccess(left.number % right.number)
+    }
+}
+
+private data object PowerCalculate : MathCalculateInfixOperatorFunction {
+    override fun invoke(
+        context: CalculateContext,
+        left: CalculateResult.Success,
+        right: CalculateResult.Success,
+        key: InfixKey,
+    ): CalculateResult.Success {
+        if (left !is MathCalculateSuccess || right !is MathCalculateSuccess || key != PowerKey) {
+            context.fail(UnsupportedInfixOperator)
+        }
+        val result = left.number.toString().toDouble().pow(right.number.toString().toDouble())
+        if (!result.isFinite()) {
+            context.fail(NonFiniteResult)
+        }
+        return MathCalculateSuccess(PreciseNumber.of(result))
+    }
+}
+
+@OptIn(CalculateSubclass::class)
+private data object NonFiniteResult : CalculateResult.Failure

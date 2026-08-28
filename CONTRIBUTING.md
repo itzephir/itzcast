@@ -52,3 +52,19 @@ Pull requests must pass:
 
 Please do not include credentials, local settings, build output, or files from
 `~/.itzcast`.
+
+## Developing against a local calkt build
+
+itzcast uses the released calkt artifact from Maven Central by default. After
+publishing a calkt snapshot to Maven Local, enable the repository and select
+that version explicitly:
+
+```bash
+../calkt/gradlew publishToMavenLocal
+./gradlew check :app:compileKotlin \
+    -PuseMavenLocal=true \
+    -PcalktVersion=0.0.2-SNAPSHOT
+```
+
+`calktVersion` may be set to any locally published version. Without
+`useMavenLocal=true`, Maven Local is not consulted.

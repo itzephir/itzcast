@@ -34,8 +34,8 @@ class BundledExtensionsIntegrationTest {
         )
 
         val pipeline = Pipeline(extensions, NoopExecutor)
-        val calculation = pipeline.suggest(QueryContext("2 + 2"))
-        assertTrue(calculation.any { it.sourceId == "itzcast.calculator" && it.title == "4" })
+        val calculation = pipeline.suggest(QueryContext("--2 ^ 3 ^ 2 % 10"))
+        assertTrue(calculation.any { it.sourceId == "itzcast.calculator" && it.title == "2" })
 
         val youtube = pipeline.suggest(QueryContext("yt funny cats"))
         val action = youtube.first { it.sourceId == "itzcast.youtube" }.action as ActionSpec.OpenUrl
