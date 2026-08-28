@@ -1,0 +1,4 @@
+interface:
+  display_name: "Issue to Draft PR"
+  short_description: "Run reviewed GitHub tickets in isolated worktrees"
+  default_prompt: "Use $issue-worktree-draft-pr to turn this problem into a reviewed issue, implement it in a main-based worktree, and open a draft PR."
