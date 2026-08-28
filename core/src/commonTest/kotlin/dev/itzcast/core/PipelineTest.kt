@@ -3,9 +3,28 @@ package dev.itzcast.core
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class PipelineTest {
+    @Test
+    fun matchesRegisteredPrefixesForLauncherPresentation() {
+        val pipeline = Pipeline(
+            listOf(
+                StaticExtension(
+                    "test.prefix",
+                    listOf(prefixHook("git"), prefixHook("git commit")),
+                ),
+            ),
+            RecordingExecutor(),
+        )
+
+        assertEquals(PrefixMatch("git", ""), pipeline.matchPrefix("git"))
+        assertEquals(PrefixMatch("git", "status"), pipeline.matchPrefix("  git   status"))
+        assertEquals(PrefixMatch("git commit", "-m message"), pipeline.matchPrefix("git commit -m message"))
+        assertNull(pipeline.matchPrefix("github"))
+    }
+
     @Test
     fun prefixHookReceivesArguments() = runTest {
         var received: PrefixMatch? = null
@@ -71,6 +90,12 @@ class PipelineTest {
         action = ActionSpec.None,
         sourceId = "test",
     )
+
+    private fun prefixHook(vararg prefixes: String) = object : PrefixHook {
+        override val extensionId = "test.${prefixes.joinToString(".")}"
+        override val prefixes = prefixes.toSet()
+        override suspend fun suggest(context: QueryContext, match: PrefixMatch) = emptyList<Suggestion>()
+    }
 
     private class RecordingExecutor : ActionExecutor {
         val actions = mutableListOf<ActionSpec>()

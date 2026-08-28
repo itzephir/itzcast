@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material.ButtonDefaults
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Surface
 import androidx.compose.material.Text
@@ -50,6 +51,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.DpSize
@@ -225,7 +227,7 @@ private fun Launcher(
     dismiss: () -> Unit,
     openSettings: () -> Unit,
 ) {
-    var query by remember { mutableStateOf("") }
+    var queryState by remember { mutableStateOf<LauncherQueryState>(LauncherQueryState.Plain()) }
     var suggestions by remember { mutableStateOf(emptyList<Suggestion>()) }
     var selectedIndex by remember { mutableIntStateOf(0) }
     var launchContext by remember { mutableStateOf(LaunchContext()) }
@@ -241,9 +243,9 @@ private fun Launcher(
     fun useSelected() {
         val suggestion = suggestions.getOrNull(selectedIndex) ?: return
         scope.launch {
-            val result = pipeline.use(query, suggestion)
+            val result = pipeline.use(queryState.query, suggestion)
             if (result.isSuccess) {
-                query = ""
+                queryState = LauncherQueryState.Plain()
                 suggestions = emptyList()
                 dismiss()
             } else {
@@ -255,15 +257,15 @@ private fun Launcher(
     LaunchedEffect(launchSequence) {
         pipeline = createPipeline()
         launchContext = pipeline.launch()
-        query = ""
+        queryState = LauncherQueryState.Plain()
         suggestions = emptyList()
         selectedIndex = 0
         status = null
     }
 
-    LaunchedEffect(query, launchContext, pipeline) {
+    LaunchedEffect(queryState.query, launchContext, pipeline) {
         delay(45)
-        suggestions = pipeline.suggest(QueryContext(query, launchContext))
+        suggestions = pipeline.suggest(QueryContext(queryState.query, launchContext))
         selectedIndex = 0
     }
 
@@ -317,10 +319,17 @@ private fun Launcher(
             elevation = 18.dp,
         ) {
             Column {
-                SearchField(query = query, focusKey = inputFocusSequence, onQueryChanged = { query = it })
+                SearchField(
+                    state = queryState,
+                    focusKey = inputFocusSequence,
+                    onPlainValueChanged = { value ->
+                        queryState = launcherQueryState(value, pipeline.matchPrefix(value.text))
+                    },
+                    onStateChanged = { queryState = it },
+                )
                 Box(Modifier.fillMaxWidth().height(1.dp).background(Palette.border))
                 if (suggestions.isEmpty()) {
-                    EmptyState(query, Modifier.fillMaxWidth().weight(1f))
+                    EmptyState(queryState.query, Modifier.fillMaxWidth().weight(1f))
                 } else {
                     LazyColumn(
                         modifier = Modifier.fillMaxWidth().weight(1f).padding(8.dp),
@@ -544,10 +553,18 @@ private fun SettingsAction(label: String, primary: Boolean, onClick: () -> Unit)
 }
 
 @Composable
-private fun SearchField(query: String, focusKey: Int, onQueryChanged: (String) -> Unit) {
+private fun SearchField(
+    state: LauncherQueryState,
+    focusKey: Int,
+    onPlainValueChanged: (TextFieldValue) -> Unit,
+    onStateChanged: (LauncherQueryState) -> Unit,
+) {
     val focusRequester = remember { FocusRequester() }
     LaunchedEffect(focusKey) {
         delay(50)
+        focusRequester.requestFocus()
+    }
+    LaunchedEffect(state is LauncherQueryState.Prefixed) {
         focusRequester.requestFocus()
     }
     Row(
@@ -556,20 +573,61 @@ private fun SearchField(query: String, focusKey: Int, onQueryChanged: (String) -
     ) {
         Text("⌕", color = Palette.accent, fontSize = 30.sp, fontWeight = FontWeight.Light)
         Spacer(Modifier.size(15.dp))
-        BasicTextField(
-            value = query,
-            onValueChange = onQueryChanged,
-            modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
-            singleLine = true,
-            textStyle = TextStyle(color = Color.White, fontSize = 24.sp),
-            cursorBrush = androidx.compose.ui.graphics.SolidColor(Palette.accent),
-            decorationBox = { inner ->
-                Box {
-                    if (query.isEmpty()) Text("Search apps or type a command…", color = Palette.muted, fontSize = 24.sp)
-                    inner()
+        when (state) {
+            is LauncherQueryState.Plain -> BasicTextField(
+                value = state.value,
+                onValueChange = onPlainValueChanged,
+                modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
+                singleLine = true,
+                textStyle = TextStyle(color = Color.White, fontSize = 24.sp),
+                cursorBrush = androidx.compose.ui.graphics.SolidColor(Palette.accent),
+                decorationBox = { inner ->
+                    Box {
+                        if (state.query.isEmpty()) {
+                            Text("Search apps or type a command…", color = Palette.muted, fontSize = 24.sp)
+                        }
+                        inner()
+                    }
+                },
+            )
+
+            is LauncherQueryState.Prefixed -> {
+                Surface(
+                    color = Color.Transparent,
+                    contentColor = Palette.accent,
+                    shape = MaterialTheme.shapes.small,
+                    border = ButtonDefaults.outlinedBorder,
+                ) {
+                    Text(
+                        state.prefix,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Medium,
+                    )
                 }
-            },
-        )
+                Spacer(Modifier.size(10.dp))
+                BasicTextField(
+                    value = state.arguments,
+                    onValueChange = { onStateChanged(state.copy(arguments = it)) },
+                    modifier = Modifier
+                        .weight(1f)
+                        .focusRequester(focusRequester)
+                        .onPreviewKeyEvent { event ->
+                            val atStart = state.arguments.selection.start == 0 &&
+                                state.arguments.selection.end == 0
+                            if (event.type == KeyEventType.KeyDown && event.key == Key.Backspace && atStart) {
+                                onStateChanged(state.removePrefix())
+                                true
+                            } else {
+                                false
+                            }
+                        },
+                    singleLine = true,
+                    textStyle = TextStyle(color = Color.White, fontSize = 24.sp),
+                    cursorBrush = androidx.compose.ui.graphics.SolidColor(Palette.accent),
+                )
+            }
+        }
     }
 }
 

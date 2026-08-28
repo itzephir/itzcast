@@ -18,6 +18,9 @@ class Pipeline(
             runCatching { hook.onLaunch(context) }.getOrDefault(context)
         }
 
+    fun matchPrefix(query: String): PrefixMatch? =
+        findPrefix(query, prefixHooks.flatMapTo(linkedSetOf()) { it.prefixes })
+
     suspend fun suggest(context: QueryContext, limit: Int = 12): List<Suggestion> {
         val matches = prefixHooks.mapNotNull { hook ->
             findPrefix(context.query, hook.prefixes)?.let { hook to it }
