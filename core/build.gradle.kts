@@ -1,8 +1,8 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
-    kotlin("multiplatform")
-    kotlin("plugin.serialization")
+    alias(libs.plugins.kotlin.multiplatform)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 kotlin {
@@ -14,12 +14,12 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
-            implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.1")
+            implementation(libs.coroutines.core)
+            implementation(libs.serialization.json)
         }
         commonTest.dependencies {
             implementation(kotlin("test"))
-            implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
+            implementation(libs.coroutines.test)
         }
     }
 }

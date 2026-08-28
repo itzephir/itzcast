@@ -1,0 +1,26 @@
+[versions]
+kotlin = "2.4.10"
+compose = "1.11.1"
+coroutines = "1.10.2"
+serialization = "1.8.1"
+ktoml = "0.7.1"
+jna = "5.19.1"
+calkt = "0.0.2"
+
+[libraries]
+calkt-math = { module = "com.itzephir.calkt:math" }
+compose-material = { module = "org.jetbrains.compose.material:material", version.ref = "compose" }
+coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
+coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
+serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization" }
+ktoml-core = { module = "com.akuleshov7:ktoml-core", version.ref = "ktoml" }
+jna = { module = "net.java.dev.jna:jna", version.ref = "jna" }
+
+# Gradle plugins used by build-logic.
+kotlin-gradle-plugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
+
+[plugins]
+kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+compose = { id = "org.jetbrains.compose", version.ref = "compose" }
+kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }

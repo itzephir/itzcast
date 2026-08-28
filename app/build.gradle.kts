@@ -1,7 +1,7 @@
 plugins {
-    kotlin("jvm")
-    id("org.jetbrains.compose")
-    id("org.jetbrains.kotlin.plugin.compose")
+    id("itzcast.kotlin-jvm-convention")
+    alias(libs.plugins.compose)
+    alias(libs.plugins.kotlin.compose)
 }
 
 evaluationDependsOn(":extensions")
@@ -13,22 +13,13 @@ val macPackageVersion = releaseVersion
     .let { parts -> if (parts.firstOrNull() == "0") listOf("1") + parts.drop(1) else parts }
     .joinToString(".")
 
-kotlin {
-    jvmToolchain(21)
-}
-
 dependencies {
     implementation(project(":core"))
     implementation(project(":platform-desktop"))
     implementation(compose.desktop.currentOs)
-    implementation("org.jetbrains.compose.material:material:1.11.1")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
-    testImplementation(kotlin("test-junit5"))
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
-}
-
-tasks.test {
-    useJUnitPlatform()
+    implementation(libs.compose.material)
+    implementation(libs.coroutines.core)
+    testImplementation(libs.coroutines.test)
 }
 
 tasks.named<Copy>("processResources") {

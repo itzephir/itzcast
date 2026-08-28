@@ -2,22 +2,21 @@ import org.gradle.api.file.DuplicatesStrategy
 import org.gradle.jvm.tasks.Jar
 
 plugins {
-    kotlin("jvm")
-    kotlin("plugin.serialization")
+    id("itzcast.kotlin-jvm-convention")
+    alias(libs.plugins.kotlin.serialization)
 }
 
-kotlin {
-    jvmToolchain(21)
-}
+val calktVersion = providers.gradleProperty("calktVersion")
+    .orElse(libs.versions.calkt)
 
 dependencies {
     implementation(project(":core"))
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.1")
-    testImplementation(kotlin("test-junit5"))
-}
-
-tasks.test {
-    useJUnitPlatform()
+    implementation(libs.serialization.json)
+    implementation(libs.calkt.math) {
+        version {
+            require(calktVersion.get())
+        }
+    }
 }
 
 val extensionRuntimeJar by tasks.registering(Jar::class) {

@@ -32,6 +32,38 @@ class OfficialExtensionHostTest {
     }
 
     @Test
+    fun calculatorSupportsUnaryOperators() {
+        assertCalculation("-3", "-3")
+        assertCalculation("+3", "3")
+        assertCalculation("--3", "3")
+        assertCalculation("-(3 + 5) * 2", "-16")
+    }
+
+    @Test
+    fun calculatorKeepsModuloAndRightAssociativePower() {
+        assertCalculation("10 % 4", "2")
+        assertCalculation("5.5 % 2", "1.5")
+        assertCalculation("1 % 0.3", "0.1")
+        assertCalculation("-10 % 4", "-2")
+        assertCalculation("2 ^ 3 ^ 2", "512")
+    }
+
+    @Test
+    fun calculatorUsesPreciseDecimalArithmetic() {
+        assertCalculation("0.1 + 0.2", "0.3")
+        assertCalculation("1 / 3", "0.3333333333333333")
+    }
+
+    @Test
+    fun calculatorAcceptsEqualsPrefixAndRejectsFailures() {
+        assertCalculation("= 2 + 2", "4")
+        assertTrue(calculatorResponse("1 / 0").suggestions.isEmpty())
+        assertTrue(calculatorResponse("10 % 0").suggestions.isEmpty())
+        assertTrue(calculatorResponse("2 +").suggestions.isEmpty())
+        assertTrue(calculatorResponse("42").suggestions.isEmpty())
+    }
+
+    @Test
     fun youtubeUsesPrefixArguments() {
         val response = OfficialExtensionHost.handle(
             "youtube",
@@ -52,4 +84,16 @@ class OfficialExtensionHostTest {
         assertEquals(10.0, response.suggestions.single().score)
         assertEquals("itzcast.web-search", response.suggestions.single().sourceId)
     }
+
+    private fun assertCalculation(expression: String, expected: String) {
+        val suggestion = calculatorResponse(expression).suggestions.single()
+        assertEquals(expected, suggestion.title)
+        assertEquals(ActionSpec.CopyText(expected), suggestion.action)
+        assertEquals("itzcast.calculator", suggestion.sourceId)
+    }
+
+    private fun calculatorResponse(expression: String) = OfficialExtensionHost.handle(
+        "calculator",
+        ExtensionRequest.Suggest(QueryContext(expression)),
+    )
 }
