@@ -9,7 +9,16 @@ import kotlin.test.assertIs
 
 class LauncherQueryStateTest {
     @Test
-    fun matchingPlainQueryBecomesPrefixed() {
+    fun exactPrefixWaitsForSeparator() {
+        val value = TextFieldValue("yt", selection = TextRange(2))
+
+        val state = launcherQueryState(value, PrefixMatch("yt", ""))
+
+        assertEquals(LauncherQueryState.Plain(value), state)
+    }
+
+    @Test
+    fun separatedPrefixBecomesPrefixed() {
         val state = launcherQueryState(
             TextFieldValue("  yt   funny cats"),
             PrefixMatch("yt", "funny cats"),
@@ -34,7 +43,7 @@ class LauncherQueryStateTest {
     }
 
     @Test
-    fun removingPrefixKeepsArgumentsAsPlainQuery() {
+    fun removingPrefixRestoresPrefixSeparatorAndArgumentsAsPlainQuery() {
         val state = LauncherQueryState.Prefixed(
             prefix = "yt",
             arguments = TextFieldValue("funny cats", selection = TextRange.Zero),
@@ -42,8 +51,21 @@ class LauncherQueryStateTest {
 
         val plain = state.removePrefix()
 
-        assertEquals("funny cats", plain.query)
-        assertEquals(TextRange.Zero, plain.value.selection)
+        assertEquals("yt funny cats", plain.query)
+        assertEquals(TextRange(3), plain.value.selection)
+    }
+
+    @Test
+    fun removingEmptyPrefixTokenRestoresTrailingSpace() {
+        val state = LauncherQueryState.Prefixed(
+            prefix = "yt",
+            arguments = TextFieldValue("", selection = TextRange.Zero),
+        )
+
+        val plain = state.removePrefix()
+
+        assertEquals("yt ", plain.query)
+        assertEquals(TextRange(3), plain.value.selection)
     }
 
     @Test
