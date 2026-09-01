@@ -92,6 +92,12 @@ fun main() = application {
     }
     val settingsStore = remember { SettingsStore(home.resolve(".itzcast/settings.toml")) }
     val executor = remember { DesktopActionExecutor() }
+    val pipeline = remember(catalog, executor) {
+        Pipeline(
+            extensions = catalog.load(),
+            executor = executor,
+        )
+    }
     var settings by remember { mutableStateOf(settingsStore.load()) }
     var visible by remember { mutableStateOf(true) }
     var launchSequence by remember { mutableIntStateOf(1) }
@@ -101,6 +107,14 @@ fun main() = application {
     var hotKeyRegistrationError by remember { mutableStateOf<String?>(null) }
     var windowKeyHandler by remember { mutableStateOf<((KeyEvent) -> Boolean)?>(null) }
     val hotKeyHolder = remember { HotKeyRegistrationHolder() }
+
+    LaunchedEffect(pipeline) {
+        pipeline.startup()
+    }
+
+    DisposableEffect(catalog) {
+        onDispose { catalog.close() }
+    }
 
     fun toggleLauncher() {
         EventQueue.invokeLater {
@@ -194,12 +208,7 @@ fun main() = application {
                 launchSequence = launchSequence,
                 inputFocusSequence = inputFocusSequence,
                 hotKey = settings.hotKey,
-                createPipeline = {
-                    Pipeline(
-                        extensions = catalog.load(),
-                        executor = executor,
-                    )
-                },
+                pipeline = pipeline,
                 dismiss = { visible = false },
                 openSettings = { screen = AppScreen.SETTINGS },
             )
@@ -223,7 +232,7 @@ private fun Launcher(
     launchSequence: Int,
     inputFocusSequence: Int,
     hotKey: HotKey,
-    createPipeline: () -> Pipeline,
+    pipeline: Pipeline,
     dismiss: () -> Unit,
     openSettings: () -> Unit,
 ) {
@@ -231,7 +240,6 @@ private fun Launcher(
     var suggestions by remember { mutableStateOf(emptyList<Suggestion>()) }
     var selectedIndex by remember { mutableIntStateOf(0) }
     var launchContext by remember { mutableStateOf(LaunchContext()) }
-    var pipeline by remember { mutableStateOf(createPipeline()) }
     var status by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     val suggestionListState = rememberLazyListState()
@@ -255,7 +263,6 @@ private fun Launcher(
     }
 
     LaunchedEffect(launchSequence) {
-        pipeline = createPipeline()
         launchContext = pipeline.launch()
         queryState = LauncherQueryState.Plain()
         suggestions = emptyList()

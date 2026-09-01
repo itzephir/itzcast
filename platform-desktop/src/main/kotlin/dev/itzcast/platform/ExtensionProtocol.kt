@@ -19,6 +19,7 @@ data class ExtensionManifest(
 
 @Serializable
 enum class HookType {
+    @SerialName("startup") STARTUP,
     @SerialName("launch") LAUNCH,
     @SerialName("prefix") PREFIX,
     @SerialName("suggest") SUGGEST,

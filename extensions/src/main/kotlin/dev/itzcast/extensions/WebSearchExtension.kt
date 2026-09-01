@@ -7,7 +7,7 @@ import dev.itzcast.core.Suggestion
 import dev.itzcast.core.SuggestionKind
 
 internal object WebSearchExtension : OfficialExtension {
-    override fun handle(request: ExtensionRequest): ExtensionResponse {
+    override suspend fun handle(request: ExtensionRequest): ExtensionResponse {
         val query = (request as? ExtensionRequest.Suggest)?.context?.query?.trim().orEmpty()
         if (query.isEmpty()) return ExtensionResponse()
         return ExtensionResponse(

@@ -11,12 +11,14 @@ val calktVersion = providers.gradleProperty("calktVersion")
 
 dependencies {
     implementation(project(":core"))
+    implementation(libs.coroutines.core)
     implementation(libs.serialization.json)
     implementation(libs.calkt.math) {
         version {
             require(calktVersion.get())
         }
     }
+    testImplementation(libs.coroutines.test)
 }
 
 val extensionRuntimeJar by tasks.registering(Jar::class) {

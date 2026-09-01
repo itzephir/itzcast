@@ -6,6 +6,10 @@ import kotlinx.serialization.Serializable
 @Serializable
 sealed interface ExtensionRequest {
     @Serializable
+    @SerialName("startup")
+    data object Startup : ExtensionRequest
+
+    @Serializable
     @SerialName("launch")
     data class Launch(val context: LaunchContext) : ExtensionRequest
 

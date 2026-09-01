@@ -1,12 +1,51 @@
 package dev.itzcast.core
 
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.async
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.runCurrent
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class PipelineTest {
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun startupHooksRunConcurrentlyOnceAndIsolateFailures() = runTest {
+        val release = CompletableDeferred<Unit>()
+        val starts = mutableMapOf<String, Int>()
+        fun startupHook(id: String, fail: Boolean = false) = object : StartupHook {
+            override val extensionId = id
+            override suspend fun onStartup() {
+                starts[id] = starts.getOrDefault(id, 0) + 1
+                if (fail) error("boom")
+                release.await()
+            }
+        }
+        val pipeline = Pipeline(
+            listOf(
+                StaticExtension("first", listOf(startupHook("first"))),
+                StaticExtension("second", listOf(startupHook("second"))),
+                StaticExtension("broken", listOf(startupHook("broken", fail = true))),
+            ),
+            RecordingExecutor(),
+        )
+
+        val startup = async { pipeline.startup() }
+        runCurrent()
+
+        assertEquals(setOf("first", "second", "broken"), starts.keys)
+        assertTrue(!startup.isCompleted)
+
+        release.complete(Unit)
+        startup.await()
+        pipeline.startup()
+
+        assertEquals(mapOf("first" to 1, "second" to 1, "broken" to 1), starts)
+    }
+
     @Test
     fun matchesRegisteredPrefixesForLauncherPresentation() {
         val pipeline = Pipeline(

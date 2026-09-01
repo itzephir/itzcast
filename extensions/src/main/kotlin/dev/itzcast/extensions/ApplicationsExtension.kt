@@ -6,17 +6,39 @@ import dev.itzcast.core.ExtensionResponse
 import dev.itzcast.core.FuzzyMatcher
 import dev.itzcast.core.Suggestion
 import dev.itzcast.core.SuggestionKind
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.io.path.isDirectory
 
-internal object ApplicationsExtension : OfficialExtension {
-    override fun handle(request: ExtensionRequest): ExtensionResponse {
-        val query = (request as? ExtensionRequest.Suggest)?.context?.query?.trim().orEmpty()
+internal class ApplicationsExtension(
+    private val loader: suspend () -> List<Application> = { loadApplications() },
+    private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
+) : OfficialExtension {
+    private val loadingMutex = Mutex()
+    private var loading: Deferred<List<Application>>? = null
+
+    override suspend fun handle(request: ExtensionRequest): ExtensionResponse = when (request) {
+        ExtensionRequest.Startup -> {
+            loading()
+            ExtensionResponse()
+        }
+
+        is ExtensionRequest.Suggest -> suggest(request)
+        else -> ExtensionResponse()
+    }
+
+    private suspend fun suggest(request: ExtensionRequest.Suggest): ExtensionResponse {
+        val query = request.context.query.trim()
         if (query.isEmpty()) return ExtensionResponse()
 
-        val suggestions = applicationRoots().flatMap(::scanApplications)
-            .distinctBy(Application::path)
+        val suggestions = loading().await()
             .mapNotNull { application ->
                 val score = FuzzyMatcher.score(query, application.name)
                 if (!score.isFinite()) null else Suggestion(
@@ -34,19 +56,27 @@ internal object ApplicationsExtension : OfficialExtension {
         return ExtensionResponse(suggestions = suggestions)
     }
 
-    private fun applicationRoots(): List<Path> {
-        val home = Path.of(System.getProperty("user.home"))
-        return listOf(Path.of("/Applications"), Path.of("/System/Applications"), home.resolve("Applications"))
+    private suspend fun loading(): Deferred<List<Application>> = loadingMutex.withLock {
+        loading ?: scope.async { loader() }.also { loading = it }
     }
-
-    private fun scanApplications(root: Path): List<Application> {
-        if (!root.isDirectory()) return emptyList()
-        return Files.walk(root, 3).use { paths ->
-            paths.filter { it.fileName.toString().endsWith(".app", ignoreCase = true) }
-                .map { Application(it.fileName.toString().removeSuffix(".app"), it) }
-                .toList()
-        }
-    }
-
-    private data class Application(val name: String, val path: Path)
 }
+
+private fun loadApplications(): List<Application> = applicationRoots()
+    .flatMap(::scanApplications)
+    .distinctBy(Application::path)
+
+private fun applicationRoots(): List<Path> {
+    val home = Path.of(System.getProperty("user.home"))
+    return listOf(Path.of("/Applications"), Path.of("/System/Applications"), home.resolve("Applications"))
+}
+
+private fun scanApplications(root: Path): List<Application> {
+    if (!root.isDirectory()) return emptyList()
+    return Files.walk(root, 3).use { paths ->
+        paths.filter { it.fileName.toString().endsWith(".app", ignoreCase = true) }
+            .map { Application(it.fileName.toString().removeSuffix(".app"), it) }
+            .toList()
+    }
+}
+
+internal data class Application(val name: String, val path: Path)
