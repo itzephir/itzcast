@@ -7,12 +7,10 @@ import dev.itzcast.core.FuzzyMatcher
 import dev.itzcast.core.Suggestion
 import dev.itzcast.core.SuggestionKind
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.io.path.isDirectory
@@ -21,12 +19,11 @@ internal class ApplicationsExtension(
     private val loader: suspend () -> List<Application> = { loadApplications() },
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
 ) : OfficialExtension {
-    private val loadingMutex = Mutex()
-    private var loading: Deferred<List<Application>>? = null
+    private val applications = scope.async(start = CoroutineStart.LAZY) { loader() }
 
     override suspend fun handle(request: ExtensionRequest): ExtensionResponse = when (request) {
         ExtensionRequest.Startup -> {
-            loading()
+            applications.start()
             ExtensionResponse()
         }
 
@@ -38,7 +35,7 @@ internal class ApplicationsExtension(
         val query = request.context.query.trim()
         if (query.isEmpty()) return ExtensionResponse()
 
-        val suggestions = loading().await()
+        val suggestions = applications.await()
             .mapNotNull { application ->
                 val score = FuzzyMatcher.score(query, application.name)
                 if (!score.isFinite()) null else Suggestion(
@@ -56,9 +53,6 @@ internal class ApplicationsExtension(
         return ExtensionResponse(suggestions = suggestions)
     }
 
-    private suspend fun loading(): Deferred<List<Application>> = loadingMutex.withLock {
-        loading ?: scope.async { loader() }.also { loading = it }
-    }
 }
 
 private fun loadApplications(): List<Application> = applicationRoots()
