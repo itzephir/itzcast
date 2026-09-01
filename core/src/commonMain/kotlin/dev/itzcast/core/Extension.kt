@@ -5,6 +5,10 @@ interface ExtensionHook {
     val priority: Int get() = 0
 }
 
+interface StartupHook : ExtensionHook {
+    suspend fun onStartup() = Unit
+}
+
 interface LaunchHook : ExtensionHook {
     suspend fun onLaunch(context: LaunchContext): LaunchContext = context
 }

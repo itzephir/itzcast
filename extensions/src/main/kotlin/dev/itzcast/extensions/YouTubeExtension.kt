@@ -7,7 +7,7 @@ import dev.itzcast.core.Suggestion
 import dev.itzcast.core.SuggestionKind
 
 internal object YouTubeExtension : OfficialExtension {
-    override fun handle(request: ExtensionRequest): ExtensionResponse {
+    override suspend fun handle(request: ExtensionRequest): ExtensionResponse {
         val arguments = (request as? ExtensionRequest.Prefix)?.match?.arguments?.trim().orEmpty()
         if (arguments.isEmpty()) return ExtensionResponse()
         return ExtensionResponse(

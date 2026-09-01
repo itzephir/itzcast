@@ -3,6 +3,6 @@ name = "Applications"
 version = "0.0.1"
 enabled = true
 command = ["@java", "-jar", "../.runtime/itzcast-extensions.jar", "applications"]
-hooks = ["suggest"]
+hooks = ["startup", "suggest"]
 priority = 50
 timeoutMs = 3000

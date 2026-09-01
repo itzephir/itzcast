@@ -7,7 +7,7 @@ import dev.itzcast.core.Suggestion
 import dev.itzcast.core.SuggestionKind
 
 internal object BashExtension : OfficialExtension {
-    override fun handle(request: ExtensionRequest): ExtensionResponse {
+    override suspend fun handle(request: ExtensionRequest): ExtensionResponse {
         val command = (request as? ExtensionRequest.Prefix)?.match?.arguments?.trim().orEmpty()
         if (command.isEmpty()) return ExtensionResponse()
         val home = System.getProperty("user.home")

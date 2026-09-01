@@ -3,15 +3,30 @@ package dev.itzcast.core
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 class Pipeline(
     extensions: List<ItzExtension>,
     private val executor: ActionExecutor,
 ) {
+    private val startupHooks = extensions.hooks<StartupHook>()
     private val launchHooks = extensions.hooks<LaunchHook>()
     private val prefixHooks = extensions.hooks<PrefixHook>()
     private val suggestHooks = extensions.hooks<SuggestHook>()
     private val useHooks = extensions.hooks<UseHook>()
+    private val startupMutex = Mutex()
+    private var started = false
+
+    suspend fun startup() = startupMutex.withLock {
+        if (started) return@withLock
+        coroutineScope {
+            startupHooks.map { hook ->
+                async { runCatching { hook.onStartup() } }
+            }.awaitAll()
+        }
+        started = true
+    }
 
     suspend fun launch(initial: LaunchContext = LaunchContext()): LaunchContext =
         launchHooks.fold(initial) { context, hook ->

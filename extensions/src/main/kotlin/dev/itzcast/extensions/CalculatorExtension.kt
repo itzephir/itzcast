@@ -36,7 +36,7 @@ import me.y9san9.calkt.parse.tryParse
 import kotlin.math.pow
 
 internal object CalculatorExtension : OfficialExtension {
-    override fun handle(request: ExtensionRequest): ExtensionResponse {
+    override suspend fun handle(request: ExtensionRequest): ExtensionResponse {
         val query = (request as? ExtensionRequest.Suggest)?.context?.query.orEmpty()
         val expression = query.trim().removePrefix("=").trim()
         if (expression.isEmpty() || expression.none(Char::isDigit) || expression.none { it in "+-*/%^" }) {
