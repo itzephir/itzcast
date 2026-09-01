@@ -322,8 +322,8 @@ private fun Launcher(
                 SearchField(
                     state = queryState,
                     focusKey = inputFocusSequence,
-                    onPlainValueChanged = { value ->
-                        queryState = launcherQueryState(value, pipeline.matchPrefix(value.text))
+                    onPlainValueChanged = { plainState, value ->
+                        queryState = plainState.update(value, pipeline.matchPrefix(value.text))
                     },
                     onStateChanged = { queryState = it },
                 )
@@ -556,7 +556,7 @@ private fun SettingsAction(label: String, primary: Boolean, onClick: () -> Unit)
 private fun SearchField(
     state: LauncherQueryState,
     focusKey: Int,
-    onPlainValueChanged: (TextFieldValue) -> Unit,
+    onPlainValueChanged: (LauncherQueryState.Plain, TextFieldValue) -> Unit,
     onStateChanged: (LauncherQueryState) -> Unit,
 ) {
     val focusRequester = remember { FocusRequester() }
@@ -576,7 +576,7 @@ private fun SearchField(
         when (state) {
             is LauncherQueryState.Plain -> BasicTextField(
                 value = state.value,
-                onValueChange = onPlainValueChanged,
+                onValueChange = { onPlainValueChanged(state, it) },
                 modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
                 singleLine = true,
                 textStyle = TextStyle(color = Color.White, fontSize = 24.sp),

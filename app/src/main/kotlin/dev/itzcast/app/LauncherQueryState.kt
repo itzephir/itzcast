@@ -11,6 +11,20 @@ internal sealed interface LauncherQueryState {
         val value: TextFieldValue = TextFieldValue(""),
     ) : LauncherQueryState {
         override val query: String get() = value.text
+
+        fun update(value: TextFieldValue, match: PrefixMatch?): LauncherQueryState {
+            val prefix = match?.prefix ?: return Plain(value)
+            val previousText = this.value.text.trimStart()
+            val updatedText = value.text.trimStart()
+            return if (previousText == prefix && updatedText == "$prefix ") {
+                Prefixed(
+                    prefix = prefix,
+                    arguments = TextFieldValue("", selection = TextRange.Zero),
+                )
+            } else {
+                Plain(value)
+            }
+        }
     }
 
     data class Prefixed(
@@ -34,18 +48,3 @@ internal sealed interface LauncherQueryState {
         }
     }
 }
-
-internal fun launcherQueryState(
-    value: TextFieldValue,
-    match: PrefixMatch?,
-): LauncherQueryState = match
-    ?.takeIf { value.text.trimStart().startsWith("${it.prefix} ") }
-    ?.let {
-        LauncherQueryState.Prefixed(
-            prefix = it.prefix,
-            arguments = TextFieldValue(
-                text = it.arguments,
-                selection = TextRange(it.arguments.length),
-            ),
-        )
-    } ?: LauncherQueryState.Plain(value)
