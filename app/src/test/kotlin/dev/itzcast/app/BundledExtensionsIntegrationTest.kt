@@ -2,8 +2,6 @@ package dev.itzcast.app
 
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonPrimitive
-import dev.itzcast.core.ActionOutcome
-import dev.itzcast.core.ActionSpec
 import dev.itzcast.core.Pipeline
 import dev.itzcast.core.QueryContext
 import dev.itzcast.platform.BundledExtensionInstaller
@@ -30,7 +28,6 @@ class BundledExtensionsIntegrationTest {
                     "itzcast.applications",
                     "itzcast.bash",
                     "itzcast.calculator",
-                    "itzcast.counter",
                     "itzcast.youtube",
                     "itzcast.web-search",
                 ),
@@ -49,25 +46,6 @@ class BundledExtensionsIntegrationTest {
             val bash = pipeline.suggest(QueryContext("bash ls -la"))
             val command = bash.first { it.sourceId == "itzcast.bash" }.action
             assertEquals(listOf("/bin/zsh", "-lc", "ls -la"), command.payload.getValue("command").jsonArray.map { it.jsonPrimitive.content })
-        }
-    }
-
-    @Test
-    fun bundledCounterExecutesWithoutPayloadAndRefreshesItsPersistentState() = runTest {
-        BundledExtensionInstaller(root).install().getOrThrow()
-        ExternalExtensionCatalog(root).use { catalog ->
-            val pipeline = Pipeline(catalog.load(), dev.itzcast.platform.desktopActions())
-            pipeline.startup()
-            repeat(3) { value ->
-                val suggestion = pipeline.suggest(QueryContext("count")).first { it.sourceId == "itzcast.counter" }
-                assertEquals("Counter: $value", suggestion.title)
-                assertEquals(ActionSpec("itzcast.counter/increment"), suggestion.action)
-                assertEquals(ActionOutcome.REFRESH, pipeline.use("count", suggestion).getOrThrow())
-            }
-        }
-        ExternalExtensionCatalog(root).use { catalog ->
-            val pipeline = Pipeline(catalog.load(), dev.itzcast.platform.desktopActions())
-            assertEquals("Counter: 0", pipeline.suggest(QueryContext("count")).first { it.sourceId == "itzcast.counter" }.title)
         }
     }
 

@@ -33,7 +33,6 @@ MODE = "production"
   itzcast.applications/manifest.toml
   itzcast.bash/manifest.toml
   itzcast.calculator/manifest.toml
-  itzcast.counter/manifest.toml
   itzcast.youtube/manifest.toml
   itzcast.web-search/manifest.toml
 ```
@@ -191,15 +190,7 @@ chmod +x ~/.itzcast/extensions/github-search/extension.py
 
 После этого запрос `gh compose multiplatform` предложит поиск GitHub.
 
-## Демо-счётчик в поставке
-
-`itzcast.counter` устанавливается вместе с приложением и использует встроенную JVM. Введите `count`: Enter вызывает `itzcast.counter/increment` без payload, увеличивает значение и возвращает `refresh`. Окно остаётся открытым; счётчик сбрасывается при перезапуске процесса. Дополнительная установка и Python не нужны.
-
-Исходники: `extensions/src/main/kotlin/dev/itzcast/extensions/CounterExtension.kt`, манифест: `extensions/catalog/itzcast.counter/manifest.toml`.
-
-## Отдельный пример на Python
-
-Для разработки стороннего расширения также доступен аналогичный `example.counter`. Он использует тот же префикс `count`; для проверки встроенного демо устанавливать его не требуется.
+## Пример кастомного action
 
 ```bash
 cp -R examples/extensions/counter ~/.itzcast/extensions/

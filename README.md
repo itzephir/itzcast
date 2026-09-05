@@ -22,7 +22,6 @@ Current application version: **0.0.1**.
 - `bash ls -la` and `sh …` run a command through zsh in the user's home
   directory.
 - `yt funny cat videos` opens a YouTube search.
-- `count` shows a demo counter; Enter increments it and refreshes the result without closing the window.
 - Expressions such as `2 + 3 * (4 ^ 2)` are evaluated locally; Enter copies
   the result.
 - The official `applications`, `bash`, `calculator`, `youtube`, and
