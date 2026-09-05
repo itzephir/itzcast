@@ -5,6 +5,9 @@ import dev.itzcast.core.ExtensionRequest
 import dev.itzcast.core.ExtensionResponse
 import dev.itzcast.core.Suggestion
 import dev.itzcast.core.SuggestionKind
+import kotlin.math.pow
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import me.y9san9.calkt.annotation.CalculateSubclass
 import me.y9san9.calkt.calculate.CalculateContext
 import me.y9san9.calkt.calculate.CalculateResult
@@ -33,7 +36,6 @@ import me.y9san9.calkt.parse.ParseResult
 import me.y9san9.calkt.parse.base.token
 import me.y9san9.calkt.parse.cause.ExpectedInputCause
 import me.y9san9.calkt.parse.tryParse
-import kotlin.math.pow
 
 internal object CalculatorExtension : OfficialExtension {
     override suspend fun handle(request: ExtensionRequest): ExtensionResponse {
@@ -53,7 +55,7 @@ internal object CalculatorExtension : OfficialExtension {
                     subtitle = "$expression — press Enter to copy",
                     score = 110.0,
                     kind = SuggestionKind.CALCULATION,
-                    action = ActionSpec.CopyText(formatted),
+                    action = ActionSpec("itzcast/copy", buildJsonObject { put("text", formatted) }),
                     sourceId = "itzcast.calculator",
                 ),
             ),

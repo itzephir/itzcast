@@ -1,6 +1,10 @@
 package dev.itzcast.extensions
 
 import dev.itzcast.core.ActionSpec
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonPrimitive
 import dev.itzcast.core.ExtensionRequest
 import dev.itzcast.core.PrefixMatchDto
 import dev.itzcast.core.QueryContext
@@ -23,8 +27,8 @@ class OfficialExtensionHostTest {
             ExtensionRequest.Prefix(QueryContext("bash pwd"), PrefixMatchDto("bash", "pwd")),
         )
 
-        val action = response.suggestions.single().action as ActionSpec.RunCommand
-        assertEquals(listOf("/bin/zsh", "-lc", "pwd"), action.command)
+        val action = response.suggestions.single().action
+        assertEquals(listOf("/bin/zsh", "-lc", "pwd"), action.payload.getValue("command").jsonArray.map { it.jsonPrimitive.content })
     }
 
     @Test
@@ -35,7 +39,7 @@ class OfficialExtensionHostTest {
         )
 
         assertEquals("50", response.suggestions.single().title)
-        assertEquals(ActionSpec.CopyText("50"), response.suggestions.single().action)
+        assertEquals(ActionSpec("itzcast/copy", buildJsonObject { put("text", "50") }), response.suggestions.single().action)
     }
 
     @Test
@@ -77,8 +81,8 @@ class OfficialExtensionHostTest {
             ExtensionRequest.Prefix(QueryContext("yt funny cats"), PrefixMatchDto("yt", "funny cats")),
         )
 
-        val action = response.suggestions.single().action as ActionSpec.OpenUrl
-        assertTrue(action.url.endsWith("funny%20cats"))
+        val action = response.suggestions.single().action
+        assertTrue(action.payload.getValue("url").jsonPrimitive.content.endsWith("funny%20cats"))
     }
 
     @Test
@@ -145,7 +149,7 @@ class OfficialExtensionHostTest {
     private suspend fun assertCalculation(expression: String, expected: String) {
         val suggestion = calculatorResponse(expression).suggestions.single()
         assertEquals(expected, suggestion.title)
-        assertEquals(ActionSpec.CopyText(expected), suggestion.action)
+        assertEquals(ActionSpec("itzcast/copy", buildJsonObject { put("text", expected) }), suggestion.action)
         assertEquals("itzcast.calculator", suggestion.sourceId)
     }
 

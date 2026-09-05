@@ -4,8 +4,7 @@ import sys
 from urllib.parse import quote
 
 
-def main():
-    request = json.loads(sys.stdin.readline())
+def handle(request):
     hook = request.get("type")
 
     if hook == "launch":
@@ -27,8 +26,8 @@ def main():
                 "kind": "WEB",
                 "sourceId": "example.github-search",
                 "action": {
-                    "type": "openUrl",
-                    "url": "https://github.com/search?q=" + quote(query),
+                    "id": "itzcast/openUrl",
+                    "payload": {"url": "https://github.com/search?q=" + quote(query)},
                 },
             })
         respond({"suggestions": suggestions})
@@ -39,8 +38,10 @@ def main():
 
 
 def respond(payload):
-    print(json.dumps(payload, ensure_ascii=False, separators=(",", ":")))
+    print(json.dumps(payload, ensure_ascii=False, separators=(",", ":")), flush=True)
 
 
 if __name__ == "__main__":
-    main()
+    for line in sys.stdin:
+        if line.strip():
+            handle(json.loads(line))

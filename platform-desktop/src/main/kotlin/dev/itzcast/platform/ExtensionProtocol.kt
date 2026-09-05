@@ -11,6 +11,7 @@ data class ExtensionManifest(
     val enabled: Boolean = true,
     val command: List<String>,
     val hooks: Set<HookType> = emptySet(),
+    val actions: List<ActionDeclaration> = emptyList(),
     val prefixes: Set<String> = emptySet(),
     val priority: Int = 0,
     val timeoutMs: Long = 2_000,
@@ -25,3 +26,6 @@ enum class HookType {
     @SerialName("suggest") SUGGEST,
     @SerialName("use") USE,
 }
+
+@Serializable
+data class ActionDeclaration(val id: String)

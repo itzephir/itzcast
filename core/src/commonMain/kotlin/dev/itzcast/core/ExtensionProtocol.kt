@@ -2,6 +2,7 @@ package dev.itzcast.core
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonObject
 
 @Serializable
 sealed interface ExtensionRequest {
@@ -22,6 +23,15 @@ sealed interface ExtensionRequest {
     data class Suggest(val context: QueryContext) : ExtensionRequest
 
     @Serializable
+    @SerialName("execute")
+    data class Execute(
+        val id: String,
+        val query: String,
+        val suggestion: Suggestion,
+        val payload: JsonObject = JsonObject(emptyMap()),
+    ) : ExtensionRequest
+
+    @Serializable
     @SerialName("use")
     data class Use(val event: UseEvent) : ExtensionRequest
 }
@@ -35,4 +45,5 @@ data class PrefixMatchDto(val prefix: String, val arguments: String) {
 data class ExtensionResponse(
     val launchContext: LaunchContext? = null,
     val suggestions: List<Suggestion> = emptyList(),
+    val actionResult: ActionResult? = null,
 )

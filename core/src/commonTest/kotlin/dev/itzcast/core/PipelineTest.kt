@@ -30,7 +30,7 @@ class PipelineTest {
                 StaticExtension("second", listOf(startupHook("second"))),
                 StaticExtension("broken", listOf(startupHook("broken", fail = true))),
             ),
-            RecordingExecutor(),
+            RecordingExecutor().registrations,
         )
 
         val startup = async { pipeline.startup() }
@@ -55,7 +55,7 @@ class PipelineTest {
                     listOf(prefixHook("git"), prefixHook("git commit")),
                 ),
             ),
-            RecordingExecutor(),
+            RecordingExecutor().registrations,
         )
 
         assertEquals(PrefixMatch("git", ""), pipeline.matchPrefix("git"))
@@ -77,7 +77,7 @@ class PipelineTest {
         }
         val pipeline = Pipeline(
             listOf(StaticExtension("test.prefix", listOf(prefixHook))),
-            RecordingExecutor(),
+            RecordingExecutor().registrations,
         )
 
         val suggestions = pipeline.suggest(QueryContext("bash ls -la"))
@@ -94,7 +94,7 @@ class PipelineTest {
             override suspend fun onUse(event: UseEvent) { events += event }
         }
         val executor = RecordingExecutor()
-        val pipeline = Pipeline(listOf(StaticExtension("test", listOf(hook))), executor)
+        val pipeline = Pipeline(listOf(StaticExtension("test", listOf(hook))), executor.registrations)
         val suggestion = suggestion("example")
 
         val result = pipeline.use("example", suggestion)
@@ -117,7 +117,7 @@ class PipelineTest {
         }
         val pipeline = Pipeline(
             listOf(StaticExtension("broken", listOf(broken)), StaticExtension("working", listOf(working))),
-            RecordingExecutor(),
+            RecordingExecutor().registrations,
         )
 
         assertEquals("still works", pipeline.suggest(QueryContext("query")).single().title)
@@ -126,7 +126,7 @@ class PipelineTest {
     private fun suggestion(title: String) = Suggestion(
         id = title,
         title = title,
-        action = ActionSpec.None,
+        action = ActionSpec("itzcast/none"),
         sourceId = "test",
     )
 
@@ -136,8 +136,11 @@ class PipelineTest {
         override suspend fun suggest(context: QueryContext, match: PrefixMatch) = emptyList<Suggestion>()
     }
 
-    private class RecordingExecutor : ActionExecutor {
+    private class RecordingExecutor {
         val actions = mutableListOf<ActionSpec>()
-        override suspend fun execute(action: ActionSpec) { actions += action }
+        val registrations = listOf(ActionRegistration("itzcast/none") {
+            actions += it.action
+            ActionOutcome.CLOSE
+        })
     }
 }

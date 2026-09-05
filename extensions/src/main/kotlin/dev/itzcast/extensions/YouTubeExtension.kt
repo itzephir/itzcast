@@ -5,6 +5,8 @@ import dev.itzcast.core.ExtensionRequest
 import dev.itzcast.core.ExtensionResponse
 import dev.itzcast.core.Suggestion
 import dev.itzcast.core.SuggestionKind
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 
 internal object YouTubeExtension : OfficialExtension {
     override suspend fun handle(request: ExtensionRequest): ExtensionResponse {
@@ -18,7 +20,7 @@ internal object YouTubeExtension : OfficialExtension {
                     subtitle = "youtube.com",
                     score = 95.0,
                     kind = SuggestionKind.WEB,
-                    action = ActionSpec.OpenUrl("https://www.youtube.com/results?search_query=${urlEncode(arguments)}"),
+                    action = ActionSpec("itzcast/openUrl", buildJsonObject { put("url", "https://www.youtube.com/results?search_query=${urlEncode(arguments)}") }),
                     sourceId = "itzcast.youtube",
                 ),
             ),

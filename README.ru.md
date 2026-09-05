@@ -78,7 +78,7 @@ app (Compose UI + composition root)
 ```
 
 - `core` не знает о Compose, файловой системе, браузере или процессах. Все side
-  effects проходят через `ActionExecutor`.
+  effects проходят через `ActionRegistry`.
 - `platform-desktop` реализует macOS-адаптеры и host protocol внешних
   расширений.
 - `app` создаёт pipeline и отображает его состояние. UI можно заменить, не
