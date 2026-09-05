@@ -38,7 +38,7 @@ class ExternalExtensionCatalogTest {
                 """
                 #!/bin/sh
                 read request
-                printf '%s\n' '{"suggestions":[{"id":"external:1","title":"External result","score":77.0,"kind":"CUSTOM","action":{"type":"none"}}]}'
+                printf '%s\n' '{"suggestions":[{"id":"external:1","title":"External result","score":77.0,"kind":"CUSTOM","action":{"id":"itzcast/none"}}]}'
                 """.trimIndent(),
             )
             check(toFile().setExecutable(true))
@@ -46,7 +46,7 @@ class ExternalExtensionCatalogTest {
 
         ExternalExtensionCatalog(root).use { catalog ->
             val extensions = catalog.load()
-            val pipeline = Pipeline(extensions, DesktopActionExecutor())
+            val pipeline = Pipeline(extensions, desktopActions())
             val first = pipeline.suggest(QueryContext("anything"))
             val second = pipeline.suggest(QueryContext("anything else"))
 
@@ -58,7 +58,7 @@ class ExternalExtensionCatalogTest {
             assertEquals("External result", first.single().title)
             assertEquals("External result", second.single().title)
             assertEquals("test.extension", first.single().sourceId)
-            assertEquals(ActionSpec.None, first.single().action)
+            assertEquals(ActionSpec("itzcast/none"), first.single().action)
         }
     }
 
@@ -86,7 +86,7 @@ class ExternalExtensionCatalogTest {
                             ;;
                         *'"type":"suggest"'*)
                             if [ "${'$'}started" = true ]; then
-                                printf '%s\n' '{"suggestions":[{"id":"persistent:1","title":"Prepared","score":1.0,"kind":"CUSTOM","action":{"type":"none"}}]}'
+                                printf '%s\n' '{"suggestions":[{"id":"persistent:1","title":"Prepared","score":1.0,"kind":"CUSTOM","action":{"id":"itzcast/none"}}]}'
                             else
                                 exit 2
                             fi
@@ -100,7 +100,7 @@ class ExternalExtensionCatalogTest {
 
         ExternalExtensionCatalog(root).use { catalog ->
             val extensions = catalog.load()
-            val pipeline = Pipeline(extensions, DesktopActionExecutor())
+            val pipeline = Pipeline(extensions, desktopActions())
 
             assertEquals(1, extensions.single().hooks.count { it is StartupHook })
             pipeline.startup()
@@ -117,7 +117,7 @@ class ExternalExtensionCatalogTest {
             id = "test.restart"
             command = ["./extension.sh"]
             hooks = ["startup", "suggest"]
-            timeoutMs = 100
+            timeoutMs = 1000
             """.trimIndent(),
         )
         directory.resolve("extension.sh").apply {
@@ -132,11 +132,11 @@ class ExternalExtensionCatalogTest {
                             printf '%s\n' '{"suggestions":[]}'
                             ;;
                         *hang*)
-                            sleep 1
+                            sleep 2
                             ;;
                         *'"type":"suggest"'*)
                             if [ "${'$'}started" = true ]; then
-                                printf '%s\n' '{"suggestions":[{"id":"restart:1","title":"Recovered","score":1.0,"kind":"CUSTOM","action":{"type":"none"}}]}'
+                                printf '%s\n' '{"suggestions":[{"id":"restart:1","title":"Recovered","score":1.0,"kind":"CUSTOM","action":{"id":"itzcast/none"}}]}'
                             else
                                 exit 2
                             fi
@@ -149,7 +149,7 @@ class ExternalExtensionCatalogTest {
         }
 
         ExternalExtensionCatalog(root).use { catalog ->
-            val pipeline = Pipeline(catalog.load(), DesktopActionExecutor())
+            val pipeline = Pipeline(catalog.load(), desktopActions())
             pipeline.startup()
 
             assertTrue(pipeline.suggest(QueryContext("hang")).isEmpty())

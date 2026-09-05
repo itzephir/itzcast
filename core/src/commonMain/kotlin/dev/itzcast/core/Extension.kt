@@ -29,13 +29,11 @@ interface UseHook : ExtensionHook {
 interface ItzExtension {
     val id: String
     val hooks: List<ExtensionHook>
-}
-
-interface ActionExecutor {
-    suspend fun execute(action: ActionSpec)
+    val actions: List<ActionRegistration> get() = emptyList()
 }
 
 data class StaticExtension(
     override val id: String,
     override val hooks: List<ExtensionHook>,
+    override val actions: List<ActionRegistration> = emptyList(),
 ) : ItzExtension

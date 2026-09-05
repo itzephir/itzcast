@@ -2,6 +2,7 @@ package dev.itzcast.core
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonObject
 
 @Serializable
 data class LaunchContext(
@@ -35,31 +36,24 @@ data class Suggestion(
 )
 
 @Serializable
-sealed interface ActionSpec {
-    @Serializable
-    @SerialName("openUrl")
-    data class OpenUrl(val url: String) : ActionSpec
+data class ActionSpec(
+    val id: String,
+    val payload: JsonObject = JsonObject(emptyMap()),
+)
 
-    @Serializable
-    @SerialName("openPath")
-    data class OpenPath(val path: String) : ActionSpec
-
-    @Serializable
-    @SerialName("command")
-    data class RunCommand(
-        val command: List<String>,
-        val workingDirectory: String? = null,
-        val environment: Map<String, String> = emptyMap(),
-    ) : ActionSpec
-
-    @Serializable
-    @SerialName("copy")
-    data class CopyText(val text: String) : ActionSpec
-
-    @Serializable
-    @SerialName("none")
-    data object None : ActionSpec
+@Serializable
+enum class ActionOutcome {
+    @SerialName("close") CLOSE,
+    @SerialName("keepOpen") KEEP_OPEN,
+    @SerialName("refresh") REFRESH,
 }
+
+@Serializable
+data class ActionResult(
+    val succeeded: Boolean,
+    val error: String? = null,
+    val outcome: ActionOutcome = ActionOutcome.CLOSE,
+)
 
 @Serializable
 enum class UsePhase { BEFORE, AFTER }

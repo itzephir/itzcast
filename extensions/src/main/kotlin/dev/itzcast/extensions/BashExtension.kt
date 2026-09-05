@@ -5,6 +5,10 @@ import dev.itzcast.core.ExtensionRequest
 import dev.itzcast.core.ExtensionResponse
 import dev.itzcast.core.Suggestion
 import dev.itzcast.core.SuggestionKind
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 
 internal object BashExtension : OfficialExtension {
     override suspend fun handle(request: ExtensionRequest): ExtensionResponse {
@@ -19,10 +23,10 @@ internal object BashExtension : OfficialExtension {
                     subtitle = "Execute with zsh in $home",
                     score = 100.0,
                     kind = SuggestionKind.COMMAND,
-                    action = ActionSpec.RunCommand(
-                        command = listOf("/bin/zsh", "-lc", command),
-                        workingDirectory = home,
-                    ),
+                    action = ActionSpec("itzcast/command", buildJsonObject {
+                        put("command", JsonArray(listOf("/bin/zsh", "-lc", command).map(::JsonPrimitive)))
+                        put("workingDirectory", home)
+                    }),
                     sourceId = "itzcast.bash",
                 ),
             ),

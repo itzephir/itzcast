@@ -1,0 +1,9 @@
+id = "example.counter"
+name = "Counter"
+command = ["./extension.py"]
+hooks = ["prefix"]
+prefixes = ["count"]
+timeoutMs = 2000
+
+[[actions]]
+id = "increment"

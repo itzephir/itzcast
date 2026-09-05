@@ -6,14 +6,16 @@ import dev.itzcast.core.ExtensionResponse
 import dev.itzcast.core.FuzzyMatcher
 import dev.itzcast.core.Suggestion
 import dev.itzcast.core.SuggestionKind
+import java.nio.file.Files
+import java.nio.file.Path
+import kotlin.io.path.isDirectory
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
-import java.nio.file.Files
-import java.nio.file.Path
-import kotlin.io.path.isDirectory
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 
 internal class ApplicationsExtension(
     private val loader: suspend () -> List<Application> = { loadApplications() },
@@ -44,7 +46,7 @@ internal class ApplicationsExtension(
                     subtitle = application.path.toString(),
                     score = score,
                     kind = SuggestionKind.APPLICATION,
-                    action = ActionSpec.OpenPath(application.path.toString()),
+                    action = ActionSpec("itzcast/openPath", buildJsonObject { put("path", application.path.toString()) }),
                     sourceId = "itzcast.applications",
                 )
             }

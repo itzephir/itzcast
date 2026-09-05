@@ -24,12 +24,13 @@ import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -47,18 +48,21 @@ import androidx.compose.ui.input.key.isShiftPressed
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
+import dev.itzcast.core.ActionInteraction
+import dev.itzcast.core.ActionOutcome
+import dev.itzcast.core.ActionViewContext
 import dev.itzcast.core.HotKey
 import dev.itzcast.core.HotKeyKey
 import dev.itzcast.core.HotKeyModifier
@@ -69,19 +73,19 @@ import dev.itzcast.core.QueryContext
 import dev.itzcast.core.Suggestion
 import dev.itzcast.core.SuggestionKind
 import dev.itzcast.platform.BundledExtensionInstaller
-import dev.itzcast.platform.DesktopActionExecutor
 import dev.itzcast.platform.DesktopHotKeyMapper
 import dev.itzcast.platform.ExternalExtensionCatalog
 import dev.itzcast.platform.MacApplicationActivator
 import dev.itzcast.platform.MacGlobalHotKey
 import dev.itzcast.platform.SettingsStore
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import dev.itzcast.platform.desktopActions
 import java.awt.Color as AwtColor
 import java.awt.EventQueue
 import java.awt.event.WindowEvent
 import java.awt.event.WindowFocusListener
 import java.nio.file.Path
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 fun main() = application {
     val home = remember { Path.of(System.getProperty("user.home")) }
@@ -91,11 +95,11 @@ fun main() = application {
         ExternalExtensionCatalog(itzcastHome)
     }
     val settingsStore = remember { SettingsStore(home.resolve(".itzcast/settings.toml")) }
-    val executor = remember { DesktopActionExecutor() }
-    val pipeline = remember(catalog, executor) {
+    val actions = remember { desktopActions() }
+    val pipeline = remember(catalog, actions) {
         Pipeline(
             extensions = catalog.load(),
-            executor = executor,
+            actions = actions,
         )
     }
     var settings by remember { mutableStateOf(settingsStore.load()) }
@@ -205,6 +209,8 @@ fun main() = application {
 
         when (screen) {
             AppScreen.LAUNCHER -> Launcher(
+                visible = visible,
+                actionContext = { query -> ActionViewContext(launchSequence, query, visible && screen == AppScreen.LAUNCHER) },
                 launchSequence = launchSequence,
                 inputFocusSequence = inputFocusSequence,
                 hotKey = settings.hotKey,
@@ -229,6 +235,8 @@ private class HotKeyRegistrationHolder(var registration: MacGlobalHotKey? = null
 
 @Composable
 private fun Launcher(
+    visible: Boolean,
+    actionContext: (String) -> ActionViewContext,
     launchSequence: Int,
     inputFocusSequence: Int,
     hotKey: HotKey,
@@ -243,6 +251,14 @@ private fun Launcher(
     var status by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     val suggestionListState = rememberLazyListState()
+    val interaction = remember { ActionInteraction() }
+    var refreshSequence by remember { mutableIntStateOf(0) }
+    SideEffect { interaction.update(ActionViewContext(launchSequence, queryState.query, visible)) }
+
+    fun updateQuery(state: LauncherQueryState) {
+        queryState = state
+        interaction.update(actionContext(state.query))
+    }
 
     fun select(index: Int) {
         if (suggestions.isNotEmpty()) selectedIndex = index.coerceIn(suggestions.indices)
@@ -250,27 +266,40 @@ private fun Launcher(
 
     fun useSelected() {
         val suggestion = suggestions.getOrNull(selectedIndex) ?: return
+        val view = actionContext(queryState.query)
+        val ticket = interaction.begin(view) ?: return
+        status = null
         scope.launch {
-            val result = pipeline.use(queryState.query, suggestion)
-            if (result.isSuccess) {
-                queryState = LauncherQueryState.Plain()
-                suggestions = emptyList()
-                dismiss()
-            } else {
-                status = result.exceptionOrNull()?.message ?: "Action failed"
+            try {
+                val result = pipeline.use(view.query, suggestion)
+                val completion = interaction.finish(ticket, result, actionContext(queryState.query)) ?: return@launch
+                if (completion.error != null) {
+                    status = completion.error
+                } else when (completion.outcome) {
+                    ActionOutcome.CLOSE -> {
+                        updateQuery(LauncherQueryState.Plain())
+                        suggestions = emptyList()
+                        dismiss()
+                    }
+                    ActionOutcome.KEEP_OPEN -> Unit
+                    ActionOutcome.REFRESH -> refreshSequence++
+                    null -> Unit
+                }
+            } finally {
+                interaction.abandon(ticket)
             }
         }
     }
 
     LaunchedEffect(launchSequence) {
         launchContext = pipeline.launch()
-        queryState = LauncherQueryState.Plain()
+        updateQuery(LauncherQueryState.Plain())
         suggestions = emptyList()
         selectedIndex = 0
         status = null
     }
 
-    LaunchedEffect(queryState.query, launchContext, pipeline) {
+    LaunchedEffect(queryState.query, launchContext, pipeline, refreshSequence) {
         delay(45)
         suggestions = pipeline.suggest(QueryContext(queryState.query, launchContext))
         selectedIndex = 0
@@ -330,9 +359,9 @@ private fun Launcher(
                     state = queryState,
                     focusKey = inputFocusSequence,
                     onPlainValueChanged = { plainState, value ->
-                        queryState = plainState.update(value, pipeline.matchPrefix(value.text))
+                        updateQuery(plainState.update(value, pipeline.matchPrefix(value.text)))
                     },
-                    onStateChanged = { queryState = it },
+                    onStateChanged = ::updateQuery,
                 )
                 Box(Modifier.fillMaxWidth().height(1.dp).background(Palette.border))
                 if (suggestions.isEmpty()) {

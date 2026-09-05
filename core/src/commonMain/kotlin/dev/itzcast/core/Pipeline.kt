@@ -8,9 +8,10 @@ import kotlinx.coroutines.sync.withLock
 
 class Pipeline(
     extensions: List<ItzExtension>,
-    private val executor: ActionExecutor,
+    actions: List<ActionRegistration> = emptyList(),
 ) {
     private val startupHooks = extensions.hooks<StartupHook>()
+    private val actionRegistry = ActionRegistry(actions + extensions.flatMap(ItzExtension::actions))
     private val launchHooks = extensions.hooks<LaunchHook>()
     private val prefixHooks = extensions.hooks<PrefixHook>()
     private val suggestHooks = extensions.hooks<SuggestHook>()
@@ -52,15 +53,16 @@ class Pipeline(
         }
 
         return contributed
+            .filter { actionRegistry.contains(it.action.id) }
             .groupBy(Suggestion::id)
             .map { (_, duplicates) -> duplicates.maxBy(Suggestion::score) }
             .sortedWith(compareByDescending<Suggestion> { it.score }.thenBy { it.title })
             .take(limit)
     }
 
-    suspend fun use(query: String, suggestion: Suggestion): Result<Unit> {
+    suspend fun use(query: String, suggestion: Suggestion): Result<ActionOutcome> {
         notifyUse(UseEvent(UsePhase.BEFORE, query, suggestion))
-        val result = runCatching { executor.execute(suggestion.action) }
+        val result = runCatching { actionRegistry.execute(ActionContext(suggestion.action, query, suggestion)) }
         notifyUse(
             UseEvent(
                 phase = UsePhase.AFTER,

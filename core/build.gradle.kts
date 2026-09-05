@@ -15,7 +15,7 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             implementation(libs.coroutines.core)
-            implementation(libs.serialization.json)
+            api(libs.serialization.json)
         }
         commonTest.dependencies {
             implementation(kotlin("test"))
