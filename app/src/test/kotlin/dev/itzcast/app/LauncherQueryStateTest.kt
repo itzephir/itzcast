@@ -2,7 +2,17 @@ package dev.itzcast.app
 
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
+import dev.itzcast.core.ActionOutcome
+import dev.itzcast.core.ActionRegistration
+import dev.itzcast.core.ActionSpec
+import dev.itzcast.core.Pipeline
+import dev.itzcast.core.PrefixHook
 import dev.itzcast.core.PrefixMatch
+import dev.itzcast.core.QueryContext
+import dev.itzcast.core.StaticExtension
+import dev.itzcast.core.SuggestHook
+import dev.itzcast.core.Suggestion
+import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -118,6 +128,68 @@ class LauncherQueryStateTest {
         )
 
         assertIs<LauncherQueryState.Prefixed>(state)
+    }
+
+    @Test
+    fun removingPrefixUpdatesSuggestionsEvenWhenQueryTextIsUnchanged() = runTest {
+        for (prefix in listOf("yt", "bash")) {
+            val matches = mutableListOf<PrefixMatch>()
+            val normalQueries = mutableListOf<String>()
+            fun suggestion(id: String) = Suggestion(id, id, action = ActionSpec("test/none"))
+            val prefixHook = object : PrefixHook {
+                override val extensionId = "test.prefix"
+                override val prefixes = setOf(prefix)
+                override suspend fun suggest(context: QueryContext, match: PrefixMatch): List<Suggestion> {
+                    matches += match
+                    return listOf(suggestion("prefix"))
+                }
+            }
+            val normalHook = object : SuggestHook {
+                override val extensionId = "test.normal"
+                override suspend fun suggest(context: QueryContext): List<Suggestion> {
+                    normalQueries += context.query
+                    return listOf(suggestion("normal"))
+                }
+            }
+            val pipeline = Pipeline(
+                listOf(StaticExtension("test", listOf(prefixHook, normalHook))),
+                listOf(ActionRegistration("test/none") { ActionOutcome.CLOSE }),
+            )
+            suspend fun results(state: LauncherQueryState) = pipeline.suggest(
+                QueryContext(state.query),
+                includePrefixSuggestions = state.prefixActive,
+            ).map { it.id }.toSet()
+            val plainPrefix = LauncherQueryState.Plain(TextFieldValue(prefix))
+            assertEquals(setOf("normal"), results(plainPrefix))
+            val active = assertIs<LauncherQueryState.Prefixed>(
+                plainPrefix.update(TextFieldValue("$prefix "), pipeline.matchPrefix("$prefix ")),
+            ).copy(arguments = TextFieldValue("cats", selection = TextRange.Zero))
+            assertEquals(setOf("normal", "prefix"), results(active))
+            assertEquals(listOf(PrefixMatch(prefix, "cats")), matches)
+
+            val removed = active.removePrefix()
+            assertEquals(active.query, removed.query)
+            assertEquals(TextRange(prefix.length + 1), removed.value.selection)
+            assertEquals(setOf("normal"), results(removed))
+            assertEquals(removed.query, normalQueries.last())
+
+            val edited = assertIs<LauncherQueryState.Plain>(
+                removed.update(TextFieldValue("$prefix dogs"), pipeline.matchPrefix("$prefix dogs")),
+            )
+            assertEquals(setOf("normal"), results(edited))
+            assertEquals(1, matches.size)
+
+            val reset = assertIs<LauncherQueryState.Plain>(
+                edited.update(TextFieldValue(prefix), pipeline.matchPrefix(prefix)),
+            )
+            val reactivated = assertIs<LauncherQueryState.Prefixed>(
+                reset.update(TextFieldValue("$prefix "), pipeline.matchPrefix("$prefix ")),
+            )
+            assertEquals(setOf("normal", "prefix"), results(reactivated))
+            assertEquals(PrefixMatch(prefix, ""), matches.last())
+            assertEquals(setOf("normal"), results(reactivated.removePrefix()))
+            assertEquals(2, matches.size)
+        }
     }
 
     @Test

@@ -87,6 +87,47 @@ class PipelineTest {
     }
 
     @Test
+    fun plainQueriesSkipEveryPrefixHookAndKeepNormalSuggestions() = runTest {
+        val prefixCalls = mutableListOf<String>()
+        val normalQueries = mutableListOf<String>()
+        fun hook(id: String) = object : PrefixHook {
+            override val extensionId = id
+            override val prefixes = setOf("yt", "bash")
+            override suspend fun suggest(context: QueryContext, match: PrefixMatch): List<Suggestion> {
+                prefixCalls += id
+                return listOf(suggestion(id))
+            }
+        }
+        val normal = object : SuggestHook {
+            override val extensionId = "normal"
+            override suspend fun suggest(context: QueryContext): List<Suggestion> {
+                normalQueries += context.query
+                return listOf(suggestion("normal"))
+            }
+        }
+        val pipeline = Pipeline(
+            listOf(StaticExtension("test", listOf(hook("first"), hook("second"), normal))),
+            RecordingExecutor().registrations,
+        )
+
+        for (query in listOf("yt cats", "bash pwd")) {
+            val context = QueryContext(query)
+            assertEquals(3, pipeline.suggest(context).size)
+            prefixCalls.clear()
+
+            assertEquals(
+                listOf("normal"),
+                pipeline.suggest(context, includePrefixSuggestions = false).map { it.title },
+            )
+            assertTrue(prefixCalls.isEmpty())
+            assertEquals(query, normalQueries.last())
+
+            assertEquals(3, pipeline.suggest(context, includePrefixSuggestions = true).size)
+            assertEquals(setOf("first", "second"), prefixCalls.toSet())
+        }
+    }
+
+    @Test
     fun useHooksRunBeforeAndAfterAction() = runTest {
         val events = mutableListOf<UseEvent>()
         val hook = object : UseHook {

@@ -6,6 +6,7 @@ import dev.itzcast.core.PrefixMatch
 
 internal sealed interface LauncherQueryState {
     val query: String
+    val prefixActive: Boolean get() = this is Prefixed
 
     data class Plain(
         val value: TextFieldValue = TextFieldValue(""),
