@@ -256,6 +256,10 @@ private fun Launcher(
     SideEffect { interaction.update(ActionViewContext(launchSequence, queryState.query, visible)) }
 
     fun updateQuery(state: LauncherQueryState) {
+        if (queryState.prefixActive != state.prefixActive) {
+            suggestions = emptyList()
+            selectedIndex = 0
+        }
         queryState = state
         interaction.update(actionContext(state.query))
     }
@@ -299,9 +303,17 @@ private fun Launcher(
         status = null
     }
 
-    LaunchedEffect(queryState.query, launchContext, pipeline, refreshSequence) {
+    LaunchedEffect(queryState.query, queryState.prefixActive, launchContext, pipeline, refreshSequence) {
+        val state = queryState
         delay(45)
-        suggestions = pipeline.suggest(QueryContext(queryState.query, launchContext))
+        val results = pipeline.suggest(
+            QueryContext(state.query, launchContext),
+            includePrefixSuggestions = state.prefixActive,
+        )
+        if (state.query != queryState.query || state.prefixActive != queryState.prefixActive) {
+            return@LaunchedEffect
+        }
+        suggestions = results
         selectedIndex = 0
     }
 

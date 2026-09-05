@@ -37,9 +37,17 @@ class Pipeline(
     fun matchPrefix(query: String): PrefixMatch? =
         findPrefix(query, prefixHooks.flatMapTo(linkedSetOf()) { it.prefixes })
 
-    suspend fun suggest(context: QueryContext, limit: Int = 12): List<Suggestion> {
-        val matches = prefixHooks.mapNotNull { hook ->
-            findPrefix(context.query, hook.prefixes)?.let { hook to it }
+    suspend fun suggest(
+        context: QueryContext,
+        limit: Int = 12,
+        includePrefixSuggestions: Boolean = true,
+    ): List<Suggestion> {
+        val matches = if (includePrefixSuggestions) {
+            prefixHooks.mapNotNull { hook ->
+                findPrefix(context.query, hook.prefixes)?.let { hook to it }
+            }
+        } else {
+            emptyList()
         }
 
         val contributed = coroutineScope {
