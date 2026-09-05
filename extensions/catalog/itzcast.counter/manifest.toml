@@ -1,0 +1,12 @@
+id = "itzcast.counter"
+name = "Counter"
+version = "0.0.1"
+enabled = true
+command = ["@java", "-jar", "../.runtime/itzcast-extensions.jar", "counter"]
+hooks = ["prefix"]
+prefixes = ["count"]
+priority = 100
+timeoutMs = 2000
+
+[[actions]]
+id = "increment"

@@ -30,6 +30,7 @@ object OfficialExtensionHost {
         "applications" to ApplicationsExtension(),
         "bash" to BashExtension,
         "calculator" to CalculatorExtension,
+        "counter" to CounterExtension(),
         "youtube" to YouTubeExtension,
         "web-search" to WebSearchExtension,
     )
